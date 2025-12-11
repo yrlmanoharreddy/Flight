@@ -37,3 +37,20 @@ cd Flight
 mvn spring-boot:run
 or 
 go to the main file and execute
+
+
+
+## REST API Endpoints
+
+Although the original requirement mentions a console-based interface, this implementation exposes the core functionality via a simple REST API.  
+A console/CLI client can easily be layered on top of these endpoints if needed.
+
+---
+
+### 1. List All Flights (debug/demo)
+
+**Request**
+
+```http
+GET /api/flights
+
