@@ -1,53 +1,64 @@
+
 package com.example.Flight.service.impl;
-
-
 
 import com.example.Flight.model.Flight;
 import com.example.Flight.model.Reservation;
+import com.example.Flight.repository.FlightRepository;
+import com.example.Flight.repository.ReservationRepository;
 import com.example.Flight.service.FlightService;
+import jakarta.annotation.PostConstruct;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class FlightServiceImpl implements FlightService {
 
-    // In-memory data storage
-    private final List<Flight> flights = Collections.synchronizedList(new ArrayList<>());
-    private final List<Reservation> reservations = Collections.synchronizedList(new ArrayList<>());
+    private final FlightRepository flightRepository;
+    private final ReservationRepository reservationRepository;
+
+    public FlightServiceImpl(FlightRepository flightRepository,
+                             ReservationRepository reservationRepository) {
+        this.flightRepository = flightRepository;
+        this.reservationRepository = reservationRepository;
+    }
 
     @PostConstruct
     @Override
     public void seedSampleData() {
-        if (!flights.isEmpty()) {
+        if (flightRepository.count() > 0) {
             return;
         }
+
         LocalDate today = LocalDate.now();
-        flights.add(new Flight("AA101", "New York",
+
+        flightRepository.save(new Flight(
+                "AA101", "New York",
                 LocalDateTime.of(today, LocalTime.of(9, 0)), 50));
-        flights.add(new Flight("AA202", "New York",
+
+        flightRepository.save(new Flight(
+                "AA202", "New York",
                 LocalDateTime.of(today, LocalTime.of(15, 30)), 20));
-        flights.add(new Flight("BA303", "London",
+
+        flightRepository.save(new Flight(
+                "BA303", "London",
                 LocalDateTime.of(today.plusDays(1), LocalTime.of(11, 15)), 10));
     }
 
     @Override
     public List<Flight> searchFlights(String destination, LocalDate date) {
-        LocalDate target = date;
-        synchronized (flights) {
-            return flights.stream()
-                    .filter(f -> f.getDestination().equalsIgnoreCase(destination))
-                    .filter(f -> f.getDepartureTime().toLocalDate().equals(target))
-                    .filter(f -> f.getAvailableSeats() > 0)
-                    .toList();
-        }
+        LocalDateTime startOfDay = date.atStartOfDay();
+        LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+
+        return flightRepository
+                .findByDestinationIgnoreCaseAndDepartureTimeBetween(
+                        destination, startOfDay, endOfDay)
+                .stream()
+                .filter(f -> f.getAvailableSeats() > 0)
+                .toList();
     }
 
     @Override
@@ -56,47 +67,29 @@ public class FlightServiceImpl implements FlightService {
             throw new IllegalArgumentException("Seats must be positive");
         }
 
-        Flight flight;
-        synchronized (flights) {
-            Optional<Flight> opt = flights.stream()
-                    .filter(f -> f.getFlightNumber().equalsIgnoreCase(flightNumber))
-                    .findFirst();
+        Flight flight = flightRepository
+                .findByFlightNumberIgnoreCase(flightNumber)
+                .orElseThrow(() -> new IllegalArgumentException("Flight not found: " + flightNumber));
 
-            if (opt.isEmpty()) {
-                throw new IllegalArgumentException("Flight not found: " + flightNumber);
-            }
-            flight = opt.get();
-
-            if (flight.getAvailableSeats() < seats) {
-                throw new IllegalStateException("Not enough seats available");
-            }
-
-            // Update seats atomically inside synchronized block
-            flight.reduceAvailableSeats(seats);
+        if (flight.getAvailableSeats() < seats) {
+            throw new IllegalStateException("Not enough seats available");
         }
+
+        // update seats and save
+        flight.reduceAvailableSeats(seats);
+        flightRepository.save(flight);
 
         Reservation reservation = new Reservation(customerName, flight, seats);
-
-        synchronized (reservations) {
-            reservations.add(reservation);
-        }
-
-        return reservation;
+        return reservationRepository.save(reservation);
     }
 
     @Override
     public List<Reservation> getReservationsForCustomer(String customerName) {
-        synchronized (reservations) {
-            return reservations.stream()
-                    .filter(r -> r.getCustomerName().equalsIgnoreCase(customerName))
-                    .toList();
-        }
+        return reservationRepository.findByCustomerNameIgnoreCase(customerName);
     }
 
     @Override
     public List<Flight> getAllFlights() {
-        synchronized (flights) {
-            return new ArrayList<>(flights);
-        }
+        return flightRepository.findAll();
     }
 }

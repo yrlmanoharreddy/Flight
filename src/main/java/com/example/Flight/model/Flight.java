@@ -1,16 +1,31 @@
 package com.example.Flight.model;
 
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+@Entity
+@Table(name = "flight")
 public class Flight {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "flight_number", unique = true, nullable = false)
     private String flightNumber;
+
+    @Column(nullable = false)
     private String destination;
+
+    @Column(name = "departure_time", nullable = false)
     private LocalDateTime departureTime;
+
+    @Column(name = "available_seats", nullable = false)
     private int availableSeats;
 
-    public Flight() {
+    protected Flight() {
+        // JPA only
     }
 
     public Flight(String flightNumber, String destination,
@@ -21,58 +36,43 @@ public class Flight {
         this.availableSeats = availableSeats;
     }
 
-    public String getFlightNumber() {
-        return flightNumber;
+    public Long getId() {
+        return id;
     }
 
-    public void setFlightNumber(String flightNumber) {
-        this.flightNumber = flightNumber;
+    public String getFlightNumber() {
+        return flightNumber;
     }
 
     public String getDestination() {
         return destination;
     }
 
-    public void setDestination(String destination) {
-        this.destination = destination;
-    }
-
     public LocalDateTime getDepartureTime() {
         return departureTime;
-    }
-
-    public void setDepartureTime(LocalDateTime departureTime) {
-        this.departureTime = departureTime;
     }
 
     public int getAvailableSeats() {
         return availableSeats;
     }
 
-    public void setAvailableSeats(int availableSeats) {
-        this.availableSeats = availableSeats;
-    }
-
     public void reduceAvailableSeats(int seats) {
         this.availableSeats -= seats;
     }
 
-    @Override
-    public String toString() {
-        return flightNumber + " to " + destination + " at " + departureTime +
-                " (available seats: " + availableSeats + ")";
+    public void setAvailableSeats(int availableSeats) {
+        this.availableSeats = availableSeats;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof Flight flight)) return false;
-        return Objects.equals(flightNumber, flight.flightNumber);
+        return Objects.equals(id, flight.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(flightNumber);
+        return Objects.hash(id);
     }
 }
-
